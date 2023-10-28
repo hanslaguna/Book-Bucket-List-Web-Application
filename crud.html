@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Add book</title>
+    <script>
+        function create_UUID() {
+            var dt = new Date().getTime();
+            var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+                var r = (dt + Math.random() * 16) % 16 | 0;
+                dt = Math.floor(dt / 16);
+                return (c == 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+            });
+            return uuid;
+        }
+
+        var bookName;
+        var extension;
+        var isLoading = false;
+    </script>
+    <link rel="icon" href="logo.ico">
+    <link rel="stylesheet" href="crud_style.css" />
+    <style>
+        #loader {
+            position: absolute;
+            display: none;
+            left: 50%;
+            top: 50%;
+            z-index: 1;
+            width: 120px;
+            height: 120px;
+            margin: -76px 0 0 -76px;
+            border: 16px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 16px solid #783201;
+            -webkit-animation: spin 2s linear infinite;
+            animation: spin 2s linear infinite;
+        }
+
+        @-webkit-keyframes spin {
+            0% {
+                -webkit-transform: rotate(0deg);
+            }
+
+            100% {
+                -webkit-transform: rotate(360deg);
+            }
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="top-nav">
+        <!-- old home button -->
+        <!-- <a href="home.html" class="home-btn">
+            <img src="logo1.png">
+        </a> -->
+
+        <button id="home-btn" class="home-btn">
+            <img src="logo1.png">
+        </button>
+
+        <div class="booktit">
+            <b>Manual Book Entry</b>
+        </div>
+    </div>
+    <!-- add image label -->
+
+    <div class = "two-section">
+        <div class="le-book">
+            <img id="myimg"><label id="upprogress"></label>
+        </div>
+        <div class="book-content">
+            <label>Book Title:</label>
+            <input id="book_title" type="text"> <br><br>
+                <p id="book_title_error" hidden>1-30,000 char/s only</p><br>
+            <label>Author/s:</label>
+            <input id="author" type="text"> <br><br>
+                <p id="author_error" hidden>1-500 char/s only</p><br>
+            <label>Description</label>
+            <textarea id="description" type="text" rows="5"></textarea> <br><br>
+                <p id="description_error" hidden>1-75,000 char/s only</p><br>
+            <label>Review</label>
+            <textarea id="review" type="text" rows="5"></textarea> <br><br>
+                <p id="review_error" hidden>1-75,000 char/s only</p><br>
+            <label>Status</label>
+            <select id="statusbox"> <br><br>
+                <option value="Read">Read</option>
+                <option value="Not Read">Not Read</option>
+            </select>
+            <br><br><br>
+            <button id="selbtn">Select Image</button>
+            <button id="upbtn">Add Book Entry</button>
+        </div>
+    </div>
+
+    <div id="loader"></div>
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.9/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.6.9/firebase-analytics.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.9/firebase-auth.js";
+        // TODO: Add SDKs for Firebase products that you want to use
+        // https://firebase.google.com/docs/web/setup#available-libraries
+
+        // Your web app's Firebase configuration
+        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8pKZiLoxspjYrgjSTiAd10uU2V_y7zwc",
+            authDomain: "book-bucket-list.firebaseapp.com",
+            databaseURL: "https://book-bucket-list-default-rtdb.firebaseio.com",
+            projectId: "book-bucket-list",
+            storageBucket: "book-bucket-list.appspot.com",
+            messagingSenderId: "934849920891",
+            appId: "1:934849920891:web:939916839736129f7bc7de",
+            measurementId: "G-F90897BQJK"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const auth = getAuth(app);
+
+        import { getDatabase, ref, get, set, child, update, remove }
+            from "https://www.gstatic.com/firebasejs/9.6.9/firebase-database.js";
+
+        import { getStorage, ref as sRef, uploadBytesResumable, getDownloadURL }
+            from "https://www.gstatic.com/firebasejs/9.6.9/firebase-storage.js";
+
+
+        const db = getDatabase();
+
+        // Get current user
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                // User is signed out
+                // Redirect user to index.html
+                location.replace("./index.html");
+            }
+        });
+
+
+        //references
+
+        var book_title = document.getElementById("book_title");
+        var author = document.getElementById("author");
+        var description = document.getElementById("description");
+        var review = document.getElementById("review");
+        var statusbox = document.getElementById("statusbox");
+
+        var files = [];
+        var reader = new FileReader();
+
+        var myimg = document.getElementById('myimg');
+        var proglab = document.getElementById('upprogress');
+        var Selbtn = document.getElementById('selbtn');
+        var UpBtn = document.getElementById('upbtn');
+
+        var input = document.createElement('input');
+        input.type = 'file';
+        input.onchange = e => {
+            files = e.target.files;
+
+            var extention = GetFileExt(files[0]);
+
+            bookName = GetFileName();
+            extension = extention;
+
+            reader.readAsDataURL(files[0]);
+        }
+
+        reader.onload = function () {
+            myimg.src = reader.result;
+        }
+
+
+        //add data
+
+        function AddData() {
+            update(ref(db, auth.currentUser.uid + "/" + bookName), {
+                BookTitle: book_title.value,
+                BookAuthors: author.value,
+                BookDescription: description.value,
+                BookReview: review.value,
+                BookStatus: statusbox.value
+            })
+                .then(() => {
+                    alert("Book Entry successfully added!");
+                    closeLoading();
+                    location.replace("./home.html")
+                })
+                .catch((error) => {
+                    alert("unsuccessful, error" + error);
+                });
+        }
+
+        // add image to database
+        function SaveURLtoRealtimeDB(downloadURL) {
+            set(ref(db, auth.currentUser.uid + "/" + bookName), {
+                ImgLink: downloadURL
+            })
+                .then(() => {
+                    AddData();
+                });
+        }
+
+        //select image
+        Selbtn.onclick = function () {
+            input.click();
+        }
+
+
+        function GetFileExt(file) {
+            var temp = file.name.split('.');
+            var ext = temp.slice((temp.length - 1), (temp.length));
+            return '.' + ext[0];
+        }
+
+        function GetFileName() {
+            return create_UUID();
+        }
+
+        //upload image to firebase storage
+        async function UploadProcess() {
+            showLoading();
+
+            var ImgToUpload = files[0];
+
+            const metaData = {
+                contentType: ImgToUpload.type
+            }
+
+            const storage = getStorage();
+            const storageRef = sRef(storage, "Images/" + bookName);
+            const UploadTask = uploadBytesResumable(storageRef, ImgToUpload, metaData);
+
+            UploadTask.on('state-changed', (snapshot) => {
+            },
+                (error) => {
+                    alert("error: image not uploaded!")
+                },
+                () => {
+                    getDownloadURL(UploadTask.snapshot.ref).then((downloadURL) => {
+                        SaveURLtoRealtimeDB(downloadURL);
+                    });
+                }
+            );
+        }
+
+        function verifyAdd() {
+            if (document.getElementById("book_title").value.trim() == "") {
+                alert("Please enter Book Details!");
+                return false;
+            }
+                else{
+                    if(areFieldsValid()){
+                        if (files[0]==null) {
+                            window.alert("Error : Please select an image.");
+                        } else {
+                            UploadProcess();
+                        }
+                }
+                else{
+                    alert("Please fix invalid field/s!");
+                }
+            }
+        }
+
+        //assignment of events to buttons
+        UpBtn.onclick = verifyAdd;
+
+    </script>
+
+
+<script type="text/javascript">
+  
+</script>
+
+
+    <script>
+        window.onbeforeunload = function (e) {
+            if (isLoading) {
+                return true;
+            }
+        };
+
+        function showLoading() {
+            document.getElementById("loader").style.display = "block";
+            isLoading = true;
+        }
+
+        function closeLoading() {
+            document.getElementById("loader").style.display = "none";
+            isLoading = false;
+        }
+    </script>
+
+
+
+    <script>
+
+        // Redirect to home.html
+        document.getElementById("home-btn").addEventListener('click', function () {
+            // location.href = "./home.html";
+            location.replace("./home.html")
+        });
+
+    </script>
+
+<script>
+
+    book_title = document.getElementById("book_title");
+    book_title.addEventListener("input", lengthChecker);
+  
+    author = document.getElementById("author");
+    author.addEventListener("input", lengthChecker);
+  
+    description = document.getElementById("description");
+    description.addEventListener("input", lengthChecker);
+
+    review = document.getElementById("review");
+    review.addEventListener("input", lengthChecker);
+
+    book_title_error = document.getElementById("book_title_error");
+    author_error = document.getElementById("author_error");
+    description_error = document.getElementById("description_error");
+    reviewr_error = document.getElementById("review_error");
+  
+  
+    function lengthChecker(){
+        if (book_title.value.length > 30000 || book_title.value.length < 1) {
+                book_title.style.backgroundColor = "#f7bbbb";
+                book_title_error.hidden = false;
+            } else {
+                book_title.style.backgroundColor = "white";
+                book_title_error.hidden = true;
+            }
+
+            if (author.value.length > 500 || author.value.length < 1) {
+                author.style.backgroundColor = "#f7bbbb";
+                author_error.hidden = false;
+            } else {
+                author.style.backgroundColor = "white";
+                author_error.hidden = true;
+            }
+
+            if (description.value.length > 75000 || description.value.length < 1) {
+                description.style.backgroundColor = "#f7bbbb";
+                description_error.hidden = false;
+            } else {
+                description.style.backgroundColor = "white";
+                description_error.hidden = true;
+            }
+
+            if (review.value.length > 75000 || review.value.length < 1) {
+                review.style.backgroundColor = "#f7bbbb";
+                review_error.hidden = false;
+            } else {
+                review.style.backgroundColor = "white";
+                review_error.hidden = true;
+            }
+    }
+  
+    function areFieldsValid() {
+            if (book_title_error.hidden == true && author_error.hidden == true && description_error.hidden == true && review_error.hidden == true) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+  
+  </script>
+
+
+</body>
+
+</html>

@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Book Bucket-list</title>
+    <link rel="icon" href="logo.ico">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+        integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link rel="stylesheet" href="home_style.css">
+    <!-- <link rel="stylesheet" href="home_style.css"> -->
+    <!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css"> -->
+
+    <style>
+        /* img is for the book cover photo inside the modal popup */
+        img {
+            height: 200px;
+            width: 100px;
+            border: 1px grey solid;
+        }
+
+        .modal {
+            display: none;
+            /* Hidden by default */
+            position: fixed;
+            /* Stay in place */
+            z-index: 1;
+            /* Sit on top */
+            padding-top: 100px;
+            /* Location of the box */
+            left: 0;
+            top: 0;
+            width: 100%;
+            /* Full width */
+            height: 100%;
+            /* Full height */
+            overflow: auto;
+            /* Enable scroll if needed */
+            background-color: rgb(0, 0, 0);
+            /* Fallback color */
+            background-color: rgba(0, 0, 0, 0.4);
+            /* Black w/ opacity */
+        }
+
+        /* Modal Content */
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+        }
+
+        /* The Close Button */
+        .close {
+            color: #aaaaaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #000;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        /* Loader */
+        #loader {
+            position: absolute;
+            display: none;
+            left: 50%;
+            top: 50%;
+            z-index: 1;
+            width: 120px;
+            height: 120px;
+            margin: -76px 0 0 -76px;
+            border: 16px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 16px solid #783201;
+            -webkit-animation: spin 2s linear infinite;
+            animation: spin 2s linear infinite;
+        }
+
+        @-webkit-keyframes spin {
+            0% {
+                -webkit-transform: rotate(0deg);
+            }
+
+            100% {
+                -webkit-transform: rotate(360deg);
+            }
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+
+    <script>
+        function Subject() {
+            this.observers = [];
+        }
+
+        Subject.prototype = {
+            subscribe: function (fn) {
+                this.observers.push(fn)
+            },
+            unsubscribe: function (fnToRemove) {
+                this.observers = this.observers.filter(fn => {
+                    if (fn != fnToRemove) {
+                        return fn;
+                    }
+                });
+            },
+            fire: function () {
+                this.observers.forEach(fn => {
+                    fn.call();
+                })
+            }
+        }
+
+        const saveButtonBookEntryVariant = new Subject();
+        const bookImageEvent = new Subject();
+        const deleteButtonBookEntry = new Subject();
+        const saveButtonBookEntry = new Subject();
+        const checkBurgerStatus = new Subject();
+        var imageName;
+        var imageExtension;
+        var bookId;
+        var bookDetails = [];
+        var bookLink;
+        var bookDownloadURL;
+        var files = [];
+        var isLoading = false;
+        var navOpen = false;
+    </script>
+
+</head>
+
+<body id="body">
+    <div class="sidenav sidebar" id="mySidebar">
+        <a href="javascript:void(0)" class="closebtn" onclick="closeNav()"><img class="j_close" src="x.svg"></a>
+        <img class="logo" src="logo1.png">
+        <button id="add_entry">Add Book Entry From Search</button>
+        <button id="crud">Add Book Entry Manually</button>
+        <button id="logout">Log out</button>
+    </div>
+
+    <div id="main">
+        <div class="topnav">
+            <table>
+                <tr>
+                    <td>
+                        <button class="openbtn" onclick="openNav()"><img class="borgar" src="list.svg"></button>
+                    </td>
+                    <td class="re-p">
+                        <p>
+                            List of Books
+                        </p>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <div class="behind"></div>
+        <div class="entries" id="ent">
+        </div>
+    </div>
+
+    <div id="loader"></div>
+
+    <!-- The Modal -->
+    <div class="modal" id="myModal">
+
+        <!-- Modal content -->
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <table>
+                <tr>
+                    <td class="le-book">
+                        <div class="cont-1">
+                            <a id="editimg">
+                                <img id="myimg">
+                                <div class="mid-text">
+                                    <div class="text">Edit book cover</div>
+                                </div>
+                            </a>
+                        </div>
+
+                        <label id="upprogress"></label>
+                        <br><br>
+                    </td>
+                    <td class="book-content">
+                        <label id="l_book_title">Book Title</label> <input id="book_title" type="text"> <br>
+                        <p id="book_title_error" hidden>1-30,000 char/s only</p><br>
+                        <label id="l_author">Author/s</label> <input id="author" type="text"> <br>
+                        <p id="author_error" hidden>1-500 char/s only</p><br>
+                        <label id="l_description">Description</label> <textarea id="description" type="text"
+                            rows="5"></textarea> <br>
+                        <p id="description_error" hidden>1-75,000 char/s only</p><br>
+                        <label id="l_review">Review</label> <textarea id="review" type="text" rows="5"></textarea> <br>
+                        <p id="review_error" hidden>1-75,000 char/s only</p><br>
+                        <label>Status</label>
+                        <select id="statusbox"> <br><br>
+                            <option value="Read">Read</option>
+                            <option value="Not Read">Not Read</option>
+                        </select> <br><br>
+
+                        <hr>
+                        <!-- <button id="editimg">Edit Image</button>-->
+                        <button id="savebtn">SAVE</button>
+                        <button id="deletebtn">DELETE</button>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function openNav() {
+            document.getElementById("mySidebar").style.width = "300px";
+            document.getElementById("main").style.marginLeft = "300px";
+            document.getElementById("ent").style.marginLeft = "300px";
+            navOpen = true;
+        }
+
+        function closeNav() {
+            document.getElementById("mySidebar").style.width = "0";
+            document.getElementById("main").style.marginLeft = "0";
+            document.getElementById("ent").style.marginLeft = "0";
+            navOpen = false;
+        }
+
+        function checkBurger() {
+            if (navOpen) {
+                openNav();
+            } else {
+                closeNav();
+            }
+        }
+
+        checkBurgerStatus.subscribe(checkBurger);
+
+    </script>
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.9/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.6.9/firebase-auth.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.6.9/firebase-analytics.js";
+        // TODO: Add SDKs for Firebase products that you want to use
+        // https://firebase.google.com/docs/web/setup#available-libraries
+
+        // Your web app's Firebase configuration
+        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8pKZiLoxspjYrgjSTiAd10uU2V_y7zwc",
+            authDomain: "book-bucket-list.firebaseapp.com",
+            projectId: "book-bucket-list",
+            storageBucket: "book-bucket-list.appspot.com",
+            messagingSenderId: "934849920891",
+            appId: "1:934849920891:web:939916839736129f7bc7de",
+            measurementId: "G-F90897BQJK"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const analytics = getAnalytics(app);
+
+        import { getDatabase, ref, get, set, child, update, remove, onValue }
+            from "https://www.gstatic.com/firebasejs/9.6.9/firebase-database.js";
+
+        const db = getDatabase();
+
+        import { getStorage, ref as sRef, uploadBytesResumable, deleteObject, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.6.9/firebase-storage.js";
+
+        const storage = getStorage();
+
+        async function UploadProcess() {
+            var ImgToUpload = files[0];
+            var ImgName = bookId;
+
+            const metaData = {
+                contentType: ImgToUpload.type
+            }
+            const storage = getStorage();
+            const storageRef = sRef(storage, "Images/" + ImgName);
+            const UploadTask = uploadBytesResumable(storageRef, ImgToUpload, metaData);
+            UploadTask.on('state-changed', (snapshot) => {
+                // var progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                // proglab.innerHTML = "Upload " + progress + "%";
+            },
+                (error) => {
+                    alert("error: image not uploaded!")
+                },
+                () => {
+                    getDownloadURL(UploadTask.snapshot.ref).then((downloadURL) => {
+                        bookDownloadURL = downloadURL;
+                        updateEntry();
+                    });
+                }
+            );
+        }
+
+        function deleteImg() {
+
+            try {
+                // Create a reference to the file to delete
+                const oldImageRef = sRef(storage, bookLink);
+
+                // Delete the storage iamge
+                deleteObject(oldImageRef).then(() => {
+                    // Image successfully deleted.
+                }).catch((error) => {
+                    // Uh-oh, an error occurred!
+                });
+            }
+            catch (err) {
+
+            }
+        }
+
+        function updateImg() {
+            try {
+                const oldImageRef = sRef(storage, bookLink);
+                // Create a reference to the file to delete
+
+                // Delete the storage iamge
+                deleteObject(oldImageRef).then(() => {
+                    UploadProcess();
+                }).catch((error) => {
+                    // Uh-oh, an error occurred!
+                });
+            }
+            catch (err) {
+                UploadProcess();
+            }
+        }
+
+        function deleteEntry() {
+            remove(ref(db, auth.currentUser.uid + "/" + bookId))
+                .catch((error) => {
+                    alert("unsuccessful, error" + error);
+                });
+            checkBurgerStatus.fire();
+        }
+
+        function updateEntry() {
+            if (bookDownloadURL != null) {
+                update(ref(db, auth.currentUser.uid + "/" + bookId), {
+                    BookTitle: bookDetails[0],
+                    BookAuthors: bookDetails[1],
+                    BookDescription: bookDetails[2],
+                    BookReview: bookDetails[3],
+                    BookStatus: bookDetails[4],
+                    ImgLink: bookDownloadURL
+                })
+                    .then(() => {
+                        closeLoading();
+                    })
+                    .catch((error) => {
+                        alert("unsuccessful, error" + error);
+                    });
+            } else {
+                update(ref(db, auth.currentUser.uid + "/" + bookId), {
+                    BookTitle: bookDetails[0],
+                    BookAuthors: bookDetails[1],
+                    BookDescription: bookDetails[2],
+                    BookReview: bookDetails[3],
+                    BookStatus: bookDetails[4]
+                })
+                    .catch((error) => {
+                        alert("unsuccessful, error" + error);
+                    });
+            }
+
+        }
+
+        bookImageEvent.subscribe(deleteImg);
+        saveButtonBookEntryVariant.subscribe(updateImg);
+        saveButtonBookEntry.subscribe(updateEntry);
+        deleteButtonBookEntry.subscribe(deleteEntry);
+
+        //other ref
+        var entries = document.getElementById("ent");
+        // entries = document.createElement('div');
+        // entries.setAttribute('id', 'ent');
+        // entries.setAttribute('class', 'entries');
+
+        function initializeEntries(books, callBack) {
+            entries.remove(entries);
+            entries = document.createElement('div');
+            entries.setAttribute('id', 'ent');
+            entries.setAttribute('class', 'entries');
+            document.getElementById('body').appendChild(entries);
+            callBack(books);
+        }
+
+        function printArray(books) {
+
+            books.forEach(element => {
+                const card = document.createElement('div');
+                card.setAttribute('class', 'card col-md-6');
+                card.setAttribute('style', 'max-width: 32rem;');
+                card.setAttribute('id', 'entries');
+
+                const logo = document.createElement('img');
+                logo.src = element.val().ImgLink;
+                logo.className = "card-img-top";
+
+                card.appendChild(logo);
+
+                const card_body = document.createElement('div');
+                card_body.setAttribute('class', 'card-body');
+
+                const card_title = document.createElement('h5');
+                card_title.setAttribute('class', 'card-title');
+                card_title.innerHTML = element.val().BookTitle;
+
+                card_body.appendChild(card_title);
+
+                const card_text = document.createElement('p');
+                card_text.setAttribute('class', 'card-text');
+                card_text.innerHTML = element.val().BookAuthors;
+
+                card_body.appendChild(card_text);
+
+                const button = document.createElement('button');
+
+                button.setAttribute('class', 'btn btn-primary btn-md');
+                button.addEventListener('click', function () {
+                    togglePopup(element);
+                });
+
+                button.innerHTML = "More";
+
+                card_body.appendChild(button);
+
+                card.appendChild(card_body);
+
+                entries.appendChild(card);
+            });
+            closeLoading();
+        }
+
+        function getUserData(uid) {
+            const dbRef = ref(db);
+            get(child(dbRef, uid))
+                .then((snapshot) => {
+
+                    var books = [];
+
+                    snapshot.forEach(childSnapshot => {
+                        books.push(childSnapshot);
+                    });
+
+                    if (books.length != 0) {
+                        initializeEntries(books, printArray);
+                    }
+                });
+        }
+
+        function getUserDataRealtime(uid) {
+            showLoading();
+            const dbRef = ref(db, uid);
+            onValue(dbRef, (snapshot) => {
+                var books = [];
+
+                snapshot.forEach(childSnapshot => {
+                    books.push(childSnapshot);
+                });
+
+                if (books.length != 0) {
+                    initializeEntries(books, printArray);
+                } else {
+                    // Reinit of entries
+                    entries.remove(entries);
+                    entries = document.createElement('div');
+                    entries.setAttribute('id', 'ent');
+                    entries.setAttribute('class', 'entries');
+                    document.getElementById('body').appendChild(entries);
+
+                    const no_book = document.createElement("h2");
+                    no_book.setAttribute('margin', 'auto');
+                    no_book.setAttribute('width', '60%');
+                    no_book.setAttribute('padding', '10px');
+                    no_book.innerHTML = "No books."
+                    entries.appendChild(no_book);
+                    // entries.innerHTML = "No books.";
+                    closeLoading();
+                }
+            });
+        }
+
+
+
+        // Get current user
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // User is signed in, see docs for a list of available properties
+                // https://firebase.google.com/docs/reference/js/firebase.User
+                const uid = user.uid;
+                getUserData(uid);
+                getUserDataRealtime(uid);
+            } else {
+                // User is signed out
+                // Redirect user to index.html
+                location.replace("./index.html");
+            }
+        });
+
+        // Redirect to findbook.html
+        document.getElementById("add_entry").addEventListener('click', function () {
+
+            // location.href = "./findbook.html";
+            location.replace("./findbook.html")
+
+        });
+
+        // Redirect to crud.html
+        document.getElementById("crud").addEventListener('click', function () {
+            // location.href = "./crud.html";
+            location.replace("./crud.html")
+        });
+
+        // Log out
+        document.getElementById("logout").addEventListener('click', function () {
+            signOut(auth).then(() => {
+                window.alert("Log out Successful!");
+                location.replace("./index.html");
+                // Sign-out successful.
+            }).catch((error) => {
+                const errorCode = error.code;
+                const errorMessage = error.message;
+                window.alert("Error : " + errorMessage);
+            });
+        });
+    </script>
+
+    <script>
+        // card data
+        //ref for modal contents
+        var book_title = document.getElementById("book_title");
+        var author = document.getElementById("author");
+        var description = document.getElementById("description");
+        var review = document.getElementById("review");
+        var statusbox = document.getElementById("statusbox");
+
+        // btns
+        var editimg = document.getElementById("editimg");
+        var savebtn = document.getElementById("savebtn");
+        var deletebtn = document.getElementById("deletebtn");
+
+        // image
+        var myimg = document.getElementById('myimg');
+        var proglab = document.getElementById('upprogress');
+
+        // Get the modal
+        var modal = document.getElementById("myModal");
+
+        // Get the <span> element that closes the modal
+        var span = document.getElementsByClassName("close")[0];
+
+        function togglePopup(element) {
+            var imageChanged = false;
+            // resetting variables
+            imageName = null;
+            imageExtension = null;
+            bookId = null;
+            bookDetails.length = 0;
+            bookLink = null;
+            bookDownloadURL = null;
+            files.length = 0;
+
+
+            modal.style.display = "block";
+
+            span.onclick = function () {
+                modal.style.display = "none";
+            }
+
+            // Setting details
+            book_title.value = element.val().BookTitle;
+            author.value = element.val().BookAuthors;
+            description.value = element.val().BookDescription;
+            review.value = element.val().BookReview;
+            statusbox.value = element.val().BookStatus;
+            lengthChecker();
+
+
+            myimg.src = element.val().ImgLink;
+
+            // image functions
+            function GetFileExt(file) {
+                var temp = file.name.split('.');
+                var ext = temp.slice((temp.length - 1), (temp.length));
+                return '.' + ext[0];
+            }
+
+            function GetFileName() {
+                return element.key;
+            }
+
+            // Image input
+            var reader = new FileReader();
+            var input = document.createElement('input');
+            input.type = 'file';
+            input.onchange = e => {
+                files = e.target.files;
+
+                var extension = GetFileExt(files[0]);
+                var name = GetFileName();
+
+
+                imageName = name;
+                imageExtension = extension;
+
+                reader.readAsDataURL(files[0]);
+            }
+
+            reader.onload = function () {
+                myimg.src = reader.result;
+                imageChanged = true;
+            }
+
+            // Delete entry
+            deletebtn.onclick = function () {
+                bookId = element.key;
+                bookLink = element.val().ImgLink;
+                bookImageEvent.fire();
+                deleteButtonBookEntry.fire();
+                modal.style.display = "none";
+            }
+
+            // Edit image
+            editimg.onclick = function () {
+                input.click();
+            }
+
+            // Save changes
+            savebtn.onclick = function () {
+                if (areFieldsValid()) {
+                    bookId = element.key;
+                    bookDetails.push(book_title.value);
+                    bookDetails.push(author.value);
+                    bookDetails.push(description.value);
+                    bookDetails.push(review.value);
+                    bookDetails.push(statusbox.value);
+
+                    if (imageChanged) {
+                        showLoading();
+                        bookLink = element.val().ImgLink;
+                        saveButtonBookEntryVariant.fire();
+                    } else {
+                        saveButtonBookEntry.fire();
+                    }
+                    modal.style.display = "none";
+                }
+                else {
+                    alert("Please fix invalid field/s!");
+                }
+            }
+        }
+    </script>
+    <script>
+        window.onbeforeunload = function (e) {
+            if (isLoading) {
+                return true;
+            }
+        };
+
+        function showLoading() {
+            document.getElementById("loader").style.display = "block";
+            isLoading = true;
+        }
+
+        function closeLoading() {
+            document.getElementById("loader").style.display = "none";
+            isLoading = false;
+            checkBurgerStatus.fire();
+        }
+
+        // Char limits
+        book_title = document.getElementById("book_title");
+        book_title.addEventListener("input", lengthChecker);
+
+        author = document.getElementById("author");
+        author.addEventListener("input", lengthChecker);
+
+        description = document.getElementById("description");
+        description.addEventListener("input", lengthChecker);
+
+        review = document.getElementById("review");
+        review.addEventListener("input", lengthChecker);
+
+        // error popup
+        book_title_error = document.getElementById("book_title_error");
+        author_error = document.getElementById("author_error");
+        description_error = document.getElementById("description_error");
+        review_error = document.getElementById("review_error");
+
+
+        function lengthChecker() {
+            if (book_title.value.length > 30000 || book_title.value.length < 1) {
+                book_title.style.backgroundColor = "#f7bbbb";
+                book_title_error.hidden = false;
+            } else {
+                book_title.style.backgroundColor = "white";
+                book_title_error.hidden = true;
+            }
+
+            if (author.value.length > 500 || author.value.length < 1) {
+                author.style.backgroundColor = "#f7bbbb";
+                author_error.hidden = false;
+            } else {
+                author.style.backgroundColor = "white";
+                author_error.hidden = true;
+            }
+
+            if (description.value.length > 75000 || description.value.length < 1) {
+                description.style.backgroundColor = "#f7bbbb";
+                description_error.hidden = false;
+            } else {
+                description.style.backgroundColor = "white";
+                description_error.hidden = true;
+            }
+
+            if (review.value.length > 75000 || review.value.length < 1) {
+                review.style.backgroundColor = "#f7bbbb";
+                review_error.hidden = false;
+            } else {
+                review.style.backgroundColor = "white";
+                review_error.hidden = true;
+            }
+
+        }
+
+        function areFieldsValid() {
+            if (book_title_error.hidden == true && author_error.hidden == true && description_error.hidden == true && review_error.hidden == true) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+    </script>
+</body>
+
+</html>
